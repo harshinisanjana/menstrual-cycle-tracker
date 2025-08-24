@@ -1,4 +1,4 @@
-# Menstrual Cycle Tracker 🌸
+# Menstrual Cycle Tracker 
 
 A simple **Menstrual Cycle Tracker** built using **Python**, **Flask**, **MySQL**, **HTML**, **CSS**, and **Bootstrap**.  
 This web app helps users track their menstrual cycle, view hormone levels, ovulation phase, and get predictions for the next period date.
