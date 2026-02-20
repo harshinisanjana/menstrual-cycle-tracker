@@ -1,36 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <meta name="description" content="Menstrual Cycle Tracker">
-    <meta name="author" content="TemplateMo">
-    <link href="https://fonts.googleapis.com/css?family=Poppins:100,200,300,400,500,600,700,800,900&display=swap" rel="stylesheet">
-
-    <title>Dashboard - Menstrual Cycle Tracker</title>
-
-    <!-- Additional CSS Files -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/font-awesome.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/templatemo-lava.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/owl-carousel.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-</head>
-
-<body>
-    <!-- ***** Preloader Start ***** -->
-    <div id="preloader">
-        <div class="jumper">
-            <div></div>
-            <div></div>
-            <div></div>
-        </div>
-    </div>
-    <!-- ***** Preloader End ***** -->
-
-<!DOCTYPE html>
-<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -80,15 +49,26 @@
                         </div>
                         <div class="form-group">
                             <label for="cycle_length">Cycle Length (days)</label>
-                            <input type="number" id="cycle_length" name="cycle_length" min="21" max="35"
+                            <input type="number" id="cycle_length" name="cycle_length" min="21" max="90"
                                    value="{{ cycle_length if cycle_length else '' }}" required>
+                            <small>Normal: 21-35 days | PCOS: 35-90 days</small>
                         </div>
                         <div class="form-group">
                             <label for="day">Current Day in Cycle</label>
-                            <input type="number" id="day" name="day" min="1" max="35"
+                            <input type="number" id="day" name="day" min="1" max="90"
                                    value="{{ day if day else '' }}" required>
                         </div>
                     </div>
+                    
+                    <!-- PCOS Indicator -->
+                    <div class="form-group pcos-check">
+                        <label>
+                            <input type="checkbox" id="has_pcos" name="has_pcos" {% if has_pcos %}checked{% endif %}>
+                            <span>I have PCOS (longer cycles)</span>
+                        </label>
+                        <small class="pcos-info">Check this if you have been diagnosed with PCOS. This allows cycles up to 90 days.</small>
+                    </div>
+                    
                     <button type="submit" class="btn btn-primary">Generate Predictions</button>
                 </form>
             </div>
@@ -123,10 +103,34 @@
             </div>
             {% endif %}
 
+            <!-- PCOS Information Card -->
+            {% if has_pcos %}
+            <div class="card pcos-card">
+                <h2>ℹ️ PCOS Information</h2>
+                <div class="pcos-content">
+                    <p><strong>Polycystic Ovary Syndrome (PCOS)</strong> is a common condition that affects hormone levels.</p>
+                    <h3>Symptoms to track:</h3>
+                    <ul>
+                        <li>Irregular or longer menstrual cycles (35-90+ days)</li>
+                        <li>Hormone imbalances</li>
+                        <li>Difficulty predicting ovulation</li>
+                        <li>Irregular ovulation or anovulation</li>
+                    </ul>
+                    <h3>Tips:</h3>
+                    <ul>
+                        <li>Track your cycles consistently for better predictions</li>
+                        <li>Work with your healthcare provider for personalized advice</li>
+                        <li>Monitor lifestyle factors that may affect your cycle</li>
+                        <li>Keep track of any other symptoms you experience</li>
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Hormones Card -->
             {% if estrogen is not none and progesterone is not none %}
             <div class="card hormone-card">
-                <h2>🧬 Hormone Levels</h2>
+                <h2>🧬 Predicted Hormone Levels</h2>
                 <div class="hormone-grid">
                     <div class="hormone-item">
                         <span class="hormone-label">Estrogen</span>
@@ -143,7 +147,7 @@
             <!-- Next Period Card -->
             {% if next_period_start %}
             <div class="card period-card">
-                <h2>📅 Next Period</h2>
+                <h2>📅 Next Period Prediction</h2>
                 <p class="period-date">{{ next_period_start.strftime('%B %d, %Y') }}</p>
                 {% set next_period_date = next_period_start.date() %}
                 {% set today_date = today %}
@@ -176,7 +180,15 @@
             {% if plot_url %}
             <div class="card chart-card">
                 <h2>📊 Hormone Levels Chart</h2>
+                <p style="color: #666; font-size: 0.9rem; margin-bottom: 1rem;">Visual representation of your hormone fluctuations throughout your menstrual cycle</p>
                 <img src="data:image/png;base64,{{ plot_url }}" alt="Hormone Chart" class="chart-image">
+            </div>
+            {% elif estrogen is not none %}
+            <div class="card chart-card">
+                <h2>📊 Hormone Levels Chart</h2>
+                <p style="color: #ff9800; padding: 1rem; background: #fff3e0; border-radius: 8px;">
+                    ⚠️ Chart could not be generated. Please refresh the page or submit the form again.
+                </p>
             </div>
             {% endif %}
         </div>

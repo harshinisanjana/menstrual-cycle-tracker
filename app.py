@@ -4,10 +4,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib
 import io
 import base64
-import mysql.connector
+import matplotlib
 
 matplotlib.use('Agg')
 
@@ -47,30 +46,49 @@ def predict_next_period(last_period_start, cycle_length=28):
     return next_period_date
 
 def create_hormone_plot(cycle_length=28):
-    days = np.arange(1, cycle_length + 1)
-    estrogen_levels = []
-    progesterone_levels = []
+    try:
+        days = np.arange(1, cycle_length + 1)
+        estrogen_levels = []
+        progesterone_levels = []
 
-    for day in days:
-        estrogen, progesterone = calculate_hormone_levels(day, cycle_length)
-        estrogen_levels.append(estrogen)
-        progesterone_levels.append(progesterone)
+        for day in days:
+            estrogen, progesterone = calculate_hormone_levels(day, cycle_length)
+            estrogen_levels.append(estrogen)
+            progesterone_levels.append(progesterone)
 
-    plt.figure(figsize=(10, 5))
-    plt.plot(days, estrogen_levels, label="Estrogen Level", color="magenta")
-    plt.plot(days, progesterone_levels, label="Progesterone Level", color="blue")
-    plt.xlabel("Day of Cycle")
-    plt.ylabel("Hormone Level")
-    plt.title("Estrogen and Progesterone Levels Throughout Menstrual Cycle")
-    plt.legend()
-    plt.grid(True)
+        # Create figure with better DPI for clarity
+        fig, ax = plt.subplots(figsize=(12, 6), dpi=100)
+        
+        # Plot with better styling
+        ax.plot(days, estrogen_levels, label="Estrogen Level", color="#e91e63", linewidth=2.5, marker='o', markersize=3)
+        ax.plot(days, progesterone_levels, label="Progesterone Level", color="#2196f3", linewidth=2.5, marker='s', markersize=3)
+        
+        # Styling
+        ax.set_xlabel("Day of Cycle", fontsize=12, fontweight='bold')
+        ax.set_ylabel("Hormone Level (pg/mL)", fontsize=12, fontweight='bold')
+        ax.set_title("Estrogen and Progesterone Levels Throughout Menstrual Cycle", fontsize=14, fontweight='bold', pad=20)
+        ax.legend(fontsize=11, loc='upper left', framealpha=0.95)
+        ax.grid(True, alpha=0.3, linestyle='--')
+        
+        # Set background color
+        ax.set_facecolor('#f9f9f9')
+        fig.patch.set_facecolor('white')
+        
+        # Improve layout to prevent label cutoff
+        plt.tight_layout()
 
-    buffer = io.BytesIO()
-    plt.savefig(buffer, format='png')
-    buffer.seek(0)
-    plot_data = base64.b64encode(buffer.getvalue()).decode()
-    plt.close()
-    return plot_data
+        # Save to buffer with high quality
+        buffer = io.BytesIO()
+        plt.savefig(buffer, format='png', dpi=100, bbox_inches='tight', facecolor='white')
+        buffer.seek(0)
+        plot_data = base64.b64encode(buffer.getvalue()).decode()
+        plt.close(fig)
+        
+        return plot_data
+    except Exception as e:
+        print(f"Error creating hormone plot: {str(e)}")
+        plt.close('all')
+        return None
 
 def predict_ovulation_phase(cycle_length=28):
     ovulation_day = cycle_length // 2
@@ -180,10 +198,13 @@ def dashboard():
     if last_period_start and cycle_length and day:
         day = int(day)
         cycle_length = int(cycle_length)
+        has_pcos = session.get('has_pcos', False)
 
         # Validate cycle_length and day
-        if not (21 <= cycle_length <= 35):
-            flash('Cycle length must be between 21 and 35 days.', 'danger')
+        # Support normal cycles (21-35 days) and PCOS cycles (up to 90 days)
+        if not (21 <= cycle_length <= 90):
+            max_days = 90 if has_pcos else 35
+            flash(f'Cycle length must be between 21 and {max_days} days.', 'danger')
             return redirect(url_for('dashboard'))
 
         if not (1 <= day <= cycle_length):
@@ -200,6 +221,7 @@ def dashboard():
         last_period_start = request.form.get('last_period_start')
         cycle_length = request.form.get('cycle_length')
         day = request.form.get('day')
+        has_pcos = request.form.get('has_pcos') == 'on'
 
         if not last_period_start or not cycle_length or not day:
             flash('All fields are required.', 'danger')
@@ -210,17 +232,24 @@ def dashboard():
             day = int(day)
 
             # Validate cycle_length and day again after form submission
-            if not (21 <= cycle_length <= 35):
-                flash('Cycle length must be between 21 and 35 days.', 'danger')
+            # Support normal cycles (21-35 days) and PCOS cycles (up to 90 days)
+            if not (21 <= cycle_length <= 90):
+                max_days = 90 if has_pcos else 35
+                flash(f'Cycle length must be between 21 and {max_days} days.', 'danger')
                 return redirect(url_for('dashboard'))
 
             if not (1 <= day <= cycle_length):
                 flash(f'Day must be between 1 and {cycle_length}.', 'danger')
                 return redirect(url_for('dashboard'))
+            
+            # If PCOS: show warning about extended cycles
+            if has_pcos and cycle_length > 35:
+                flash(f'Note: You have indicated PCOS. Your cycle is {cycle_length} days, which is typical for PCOS.', 'info')
 
             session['last_period_start'] = last_period_start
             session['cycle_length'] = cycle_length
             session['day'] = day
+            session['has_pcos'] = has_pcos
 
             estrogen, progesterone = calculate_hormone_levels(day, cycle_length)
             next_period_start = predict_next_period(last_period_start, cycle_length)
@@ -237,7 +266,7 @@ def dashboard():
     return render_template('dashboard.html', username=username, estrogen=estrogen,
                            progesterone=progesterone, next_period_start=next_period_start,
                            plot_url=plot_url, today=today.date(), ovulation_info=ovulation_info,
-                           current_phase=current_phase)
+                           current_phase=current_phase, has_pcos=session.get('has_pcos', False))
 
 @app.route('/logout')
 def logout():
